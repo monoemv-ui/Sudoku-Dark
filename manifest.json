@@ -1,0 +1,22 @@
+{
+  "name": "Sudoku Dark - Pro Edition",
+  "short_name": "Sudoku Dark",
+  "description": "Juego de Sudoku con modo oscuro y perfiles de jugador",
+  "start_url": "./Sudoku_Dark.html",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#bb86fc",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
