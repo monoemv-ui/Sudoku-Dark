@@ -343,7 +343,63 @@
     </div>
 
 <script>
-    // sd_v7: nueva estructura con errores, promedio y partida guardada
+    // ─── MIGRACIÓN DE DATOS VIEJOS ───
+    // Busca datos en claves antiguas (sd_v6, sd_v5) y los migra a sd_v7
+    function migrateOldData() {
+        const oldKeys = ['sd_v6', 'sd_v5', 'sudoku_users', 'sd_users'];
+        for (const key of oldKeys) {
+            try {
+                const raw = localStorage.getItem(key);
+                if (!raw) continue;
+                const oldData = JSON.parse(raw);
+                if (!oldData || typeof oldData !== 'object') continue;
+
+                // Verificar que tiene al menos un usuario con datos
+                const hasUsers = Object.keys(oldData).length > 0;
+                if (!hasUsers) continue;
+
+                console.log(`[Migración] Encontrados datos en ${key}, migrando...`);
+
+                // Fusionar con sd_v7 existente (no sobreescribir si ya hay datos nuevos)
+                let current = {};
+                try { current = JSON.parse(localStorage.getItem('sd_v7')) || {}; } catch(e) {}
+
+                Object.entries(oldData).forEach(([name, data]) => {
+                    if (current[name]) return; // ya existe en v7, no pisar
+                    // Normalizar estructura
+                    current[name] = {
+                        "42": normalizeLevel(data["42"]),
+                        "34": normalizeLevel(data["34"]),
+                        "26": normalizeLevel(data["26"])
+                    };
+                });
+
+                localStorage.setItem('sd_v7', JSON.stringify(current));
+                // Limpiar clave vieja para no migrar dos veces
+                localStorage.removeItem(key);
+                console.log(`[Migración] Completada desde ${key}`);
+                return current;
+            } catch(e) {
+                console.warn(`[Migración] Error con ${key}:`, e);
+            }
+        }
+        return null;
+    }
+
+    function normalizeLevel(lvl) {
+        if (!lvl) return { wins: 0, best: Infinity, totalTime: 0, games: 0 };
+        return {
+            wins:      lvl.wins      || 0,
+            best:      (lvl.best === null || lvl.best === undefined) ? Infinity : lvl.best,
+            totalTime: lvl.totalTime || (lvl.wins ? (lvl.best !== Infinity ? lvl.best * lvl.wins : 0) : 0),
+            games:     lvl.games     || lvl.wins || 0
+        };
+    }
+
+    // Ejecutar migración antes de cargar datos
+    migrateOldData();
+
+    // sd_v7: estructura con errores, promedio y partida guardada
     let users = JSON.parse(localStorage.getItem('sd_v7')) || {};
     let currentUser = "";
     let currentDiff = "42";
