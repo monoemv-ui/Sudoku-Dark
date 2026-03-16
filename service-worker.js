@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sudoku-dark-v3';
+const CACHE_NAME = 'sudoku-dark-v4';
 const FILES_TO_CACHE = [
   './Sudoku_Dark.html',
   './manifest.json',
