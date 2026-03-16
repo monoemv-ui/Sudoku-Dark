@@ -131,6 +131,20 @@
             font-weight: 300;
         }
 
+        /* Resaltado de celdas relacionadas */
+        .cell.same-group { background: #1a1a1a; }
+        .cell.same-number { background: #1f1433; box-shadow: inset 0 0 6px rgba(187,134,252,0.35); }
+        .cell.same-number.fixed { color: #d4aaff; }
+
+        /* Animación grupo completado */
+        @keyframes groupFlash {
+            0%   { background: #0f0f0f; }
+            30%  { background: #1a2e1a; box-shadow: inset 0 0 12px var(--secondary); }
+            70%  { background: #1a2e1a; box-shadow: inset 0 0 8px var(--secondary); }
+            100% { background: #0f0f0f; }
+        }
+        .cell.group-complete { animation: groupFlash 0.7s ease-out forwards; }
+
         @keyframes pulse { 50% { box-shadow: inset 0 0 15px var(--secondary); } }
         @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 
@@ -146,6 +160,60 @@
         .btn-small { background: #1a1a1a; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; cursor: pointer; }
         .btn-small.active { background: var(--primary); color: black; }
         .confetti { position: fixed; width: 8px; height: 8px; z-index: 100; border-radius: 2px; pointer-events: none; }
+
+        /* Contador de errores */
+        .error-counter {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.85rem; color: #888;
+        }
+        .error-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #333; border: 1px solid #555;
+            transition: background 0.3s;
+        }
+        .error-dot.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+        /* Modal de game over / reanudar */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.85); z-index: 200;
+            justify-content: center; align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            background: var(--card); border: 1px solid #444;
+            border-radius: 20px; padding: 35px 30px;
+            text-align: center; max-width: 320px; width: 90%;
+        }
+        .modal-box h2 { margin: 0 0 10px; font-size: 1.8rem; color: var(--accent); }
+        .modal-box p { color: #aaa; margin: 0 0 25px; font-size: 0.95rem; }
+        .modal-btn-group { display: flex; flex-direction: column; gap: 10px; }
+
+        /* Badge "Reanudar" en menú */
+        .resume-badge {
+            background: #1a1a2e; border: 1px solid var(--primary);
+            border-radius: 12px; padding: 14px 18px;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; transition: 0.2s;
+        }
+        .resume-badge:hover { box-shadow: 0 0 15px var(--primary)33; }
+        .resume-badge .rb-info { text-align: left; }
+        .resume-badge .rb-label { font-size: 0.65rem; color: var(--primary); letter-spacing: 1px; }
+        .resume-badge .rb-detail { font-size: 0.95rem; color: var(--text); margin-top: 2px; }
+        .resume-badge .rb-arrow { font-size: 1.5rem; color: var(--primary); }
+
+        /* Stats mejoradas */
+        .stats-summary {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 10px; margin-bottom: 15px;
+        }
+        .stat-mini {
+            background: #0f0f0f; border: 1px solid #2a2a2a;
+            border-radius: 10px; padding: 12px;
+            text-align: center;
+        }
+        .stat-mini .sm-val { font-size: 1.4rem; font-weight: bold; color: var(--primary); }
+        .stat-mini .sm-label { font-size: 0.65rem; color: #666; margin-top: 2px; letter-spacing: 0.5px; }
     </style>
 </head>
 <body>
@@ -155,6 +223,18 @@
     <div class="container">
         <div id="menu-screen">
             <h1>Sudoku Dark</h1>
+
+            <!-- Badge partida guardada -->
+            <div id="resume-section" style="display:none;" onclick="resumeGame()">
+                <div class="resume-badge">
+                    <div class="rb-info">
+                        <div class="rb-label">▶ PARTIDA GUARDADA</div>
+                        <div class="rb-detail" id="resume-detail">Continuar...</div>
+                    </div>
+                    <div class="rb-arrow">›</div>
+                </div>
+            </div>
+
             <div class="glass-card">
                 <label style="font-size: 0.7rem; color: #888;">PERFIL DE JUGADOR</label>
                 <select id="user-select" onchange="toggleNewUser(this.value)">
@@ -170,23 +250,32 @@
                     <option value="26">Difícil</option>
                 </select>
 
-                <button class="btn-main" onclick="initGame()" style="margin-top: 20px;">INICIAR PARTIDA</button>
+                <button class="btn-main" onclick="initGame()" style="margin-top: 20px;">INICIAR NUEVA PARTIDA</button>
                 <button class="btn-main btn-outline" onclick="showStats()">VER ESTADÍSTICAS</button>
             </div>
         </div>
 
         <div id="stats-screen">
-            <h1 style="font-size: 2rem;">Récords</h1>
+            <h1 style="font-size: 2rem;">Estadísticas</h1>
             <div class="glass-card">
                 <select id="stats-filter" onchange="showStats()" style="margin-bottom: 15px;">
                     <option value="42">Fácil</option>
                     <option value="34">Medio</option>
                     <option value="26">Difícil</option>
                 </select>
-                <div style="max-height: 250px; overflow-y: auto;">
+
+                <!-- Resumen global de la dificultad -->
+                <div class="stats-summary" id="stats-summary"></div>
+
+                <div style="max-height: 220px; overflow-y: auto;">
                     <table class="stats-table" id="stats-body">
                         <thead>
-                            <tr><th>Jugador</th><th>Victorias</th><th>Mejor Tiempo</th></tr>
+                            <tr>
+                                <th>Jugador</th>
+                                <th>Victorias</th>
+                                <th>Mejor</th>
+                                <th>Promedio</th>
+                            </tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -198,6 +287,12 @@
         <div id="game-screen">
             <div class="header-game">
                 <span id="display-name" style="color:var(--primary); font-weight:bold;">---</span>
+                <div class="error-counter" id="error-counter">
+                    <div class="error-dot" id="ed1"></div>
+                    <div class="error-dot" id="ed2"></div>
+                    <div class="error-dot" id="ed3"></div>
+                    <div class="error-dot" id="ed4"></div>
+                </div>
                 <div id="timer" style="font-family: 'JetBrains Mono'; font-size: 1.6rem; color: var(--secondary);">00:00</div>
             </div>
             <div id="hint-msg">Concentración...</div>
@@ -206,7 +301,7 @@
                 <button class="btn-small" id="pencil-btn" onclick="togglePencil()">Lápiz: OFF</button>
                 <button class="btn-small" id="hint-btn" onclick="giveStrategicHint()">Sugerencia (3)</button>
                 <button class="btn-small" onclick="checkErrors()">Revisar</button>
-                <button class="btn-small" onclick="exitGame()" style="color:var(--accent)">Salir</button>
+                <button class="btn-small" onclick="askExit()" style="color:var(--accent)">Salir</button>
             </div>
             <div class="numpad">
                 <button class="btn-small" onclick="handleInput(1)">1</button>
@@ -221,15 +316,41 @@
                 <button class="btn-small" onclick="handleInput(null)">⌫</button>
             </div>
         </div>
+    </div><!-- end container -->
+
+    <!-- Modal Game Over -->
+    <div class="modal-overlay" id="gameover-modal">
+        <div class="modal-box">
+            <h2>💀 Game Over</h2>
+            <p>Alcanzaste el máximo de <strong>4 errores</strong>.<br>¡Inténtalo de nuevo!</p>
+            <div class="modal-btn-group">
+                <button class="btn-main" onclick="startNewGameFromModal()">NUEVA PARTIDA</button>
+                <button class="btn-main btn-outline" onclick="exitFromModal()">VOLVER AL MENÚ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Salir con guardado -->
+    <div class="modal-overlay" id="exit-modal">
+        <div class="modal-box">
+            <h2 style="color: var(--primary);">¿Salir?</h2>
+            <p>Tu partida se guardará automáticamente.<br>Podrás reanudarla desde el menú.</p>
+            <div class="modal-btn-group">
+                <button class="btn-main" onclick="saveAndExit()">GUARDAR Y SALIR</button>
+                <button class="btn-main btn-outline" onclick="closeExitModal()">SEGUIR JUGANDO</button>
+            </div>
+        </div>
     </div>
 
 <script>
-    // Se cambia la clave a sd_v6 para manejar la nueva estructura por niveles
-    let users = JSON.parse(localStorage.getItem('sd_v6')) || {};
+    // sd_v7: nueva estructura con errores, promedio y partida guardada
+    let users = JSON.parse(localStorage.getItem('sd_v7')) || {};
     let currentUser = "";
-    let currentDiff = "42"; // Guarda la dificultad actual de la partida
+    let currentDiff = "42";
     let gridData = [], solution = [], selected = null, isPencil = false, hints = 3;
     let timer, secs = 0;
+    let errorCount = 0;
+    const MAX_ERRORS = 4;
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playSound(freq = 440, duration = 0.1) {
@@ -243,6 +364,81 @@
 
     function toggleNewUser(v) { document.getElementById('new-user-input').style.display = v === 'new' ? 'block' : 'none'; }
 
+    function ensureUserStructure(name) {
+        if (!users[name]) {
+            users[name] = {
+                "42": { wins: 0, best: Infinity, totalTime: 0, games: 0 },
+                "34": { wins: 0, best: Infinity, totalTime: 0, games: 0 },
+                "26": { wins: 0, best: Infinity, totalTime: 0, games: 0 }
+            };
+        }
+        // Migrar perfil antiguo sin totalTime/games
+        ["42","34","26"].forEach(d => {
+            if (!users[name][d]) users[name][d] = { wins: 0, best: Infinity, totalTime: 0, games: 0 };
+            if (users[name][d].totalTime === undefined) users[name][d].totalTime = 0;
+            if (users[name][d].games === undefined) users[name][d].games = users[name][d].wins || 0;
+        });
+    }
+
+    function saveUsers() { localStorage.setItem('sd_v7', JSON.stringify(users)); }
+
+    // ─── PARTIDA GUARDADA ───
+    function saveCurrentGame() {
+        const saved = {
+            user: currentUser, diff: currentDiff,
+            gridData: gridData, solution: solution,
+            secs: secs, hints: hints, errorCount: errorCount
+        };
+        localStorage.setItem('sd_savedGame', JSON.stringify(saved));
+    }
+
+    function loadSavedGame() {
+        try { return JSON.parse(localStorage.getItem('sd_savedGame')); }
+        catch(e) { return null; }
+    }
+
+    function clearSavedGame() { localStorage.removeItem('sd_savedGame'); }
+
+    function checkResumeButton() {
+        const saved = loadSavedGame();
+        const section = document.getElementById('resume-section');
+        const detail = document.getElementById('resume-detail');
+        if (saved && saved.gridData && saved.user) {
+            const diffLabel = { "42": "Fácil", "34": "Medio", "26": "Difícil" }[saved.diff] || "?";
+            section.style.display = 'block';
+            detail.innerText = `${saved.user} · ${diffLabel} · ${formatTime(saved.secs || 0)} · ${MAX_ERRORS - (saved.errorCount||0)} vidas`;
+        } else {
+            section.style.display = 'none';
+        }
+    }
+
+    function resumeGame() {
+        const saved = loadSavedGame();
+        if (!saved) return;
+        currentUser = saved.user;
+        currentDiff = saved.diff;
+        gridData = saved.gridData;
+        solution = saved.solution;
+        secs = saved.secs || 0;
+        hints = saved.hints !== undefined ? saved.hints : 3;
+        errorCount = saved.errorCount || 0;
+
+        // Asegurar que el usuario existe
+        ensureUserStructure(currentUser);
+        saveUsers();
+
+        document.getElementById('menu-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'block';
+        document.getElementById('display-name').innerText = currentUser;
+        document.getElementById('timer').innerText = formatTime(secs);
+        updateHintBtn();
+        updateErrorDots();
+        isPencil = false;
+        selected = null;
+        startTimer();
+        render();
+    }
+
     function initGame() {
         const sel = document.getElementById('user-select');
         if(!sel.value) return alert("Por favor, elige o crea un perfil.");
@@ -252,19 +448,15 @@
         if(sel.value === 'new') {
             const name = document.getElementById('new-user-input').value.trim();
             if(!name) return alert("Escribe un nombre.");
-            if(!users[name]) {
-                users[name] = { 
-                    "42": { wins: 0, best: Infinity }, 
-                    "34": { wins: 0, best: Infinity }, 
-                    "26": { wins: 0, best: Infinity } 
-                };
-            }
+            ensureUserStructure(name);
             currentUser = name;
         } else {
             currentUser = sel.value;
+            ensureUserStructure(currentUser);
         }
         
-        localStorage.setItem('sd_v6', JSON.stringify(users));
+        saveUsers();
+        clearSavedGame();
         document.getElementById('menu-screen').style.display = 'none';
         document.getElementById('game-screen').style.display = 'block';
         document.getElementById('display-name').innerText = currentUser;
@@ -273,28 +465,50 @@
 
     function showStats() {
         const filterEl = document.getElementById('stats-filter');
-        const diff = filterEl ? filterEl.value : "42"; 
+        const diff = filterEl ? filterEl.value : "42";
+        const diffLabel = { "42": "Fácil", "34": "Medio", "26": "Difícil" }[diff];
 
         const body = document.querySelector('#stats-body tbody');
         body.innerHTML = '';
-        
-        const sorted = Object.entries(users)
-            .filter(([_, data]) => data[diff] && (data[diff].wins > 0 || data[diff].best !== Infinity))
-            .sort((a,b) => b[1][diff].wins - a[1][diff].wins);
-        
+
+        const allEntries = Object.entries(users)
+            .map(([name, data]) => {
+                ensureUserStructure(name);
+                return [name, data[diff]];
+            })
+            .filter(([_, d]) => d.wins > 0 || d.games > 0);
+
+        // Stats globales de la dificultad
+        const totalWins = allEntries.reduce((s,[_,d]) => s + d.wins, 0);
+        const totalGames = allEntries.reduce((s,[_,d]) => s + d.games, 0);
+        const bestTime = allEntries.reduce((b,[_,d]) => d.best < b ? d.best : b, Infinity);
+        const avgTimeAll = allEntries.filter(([_,d]) => d.wins > 0)
+            .reduce((s,[_,d]) => { return s + (d.wins > 0 ? d.totalTime / d.wins : 0); }, 0)
+            / Math.max(allEntries.filter(([_,d]) => d.wins > 0).length, 1);
+
+        document.getElementById('stats-summary').innerHTML = `
+            <div class="stat-mini"><div class="sm-val">${totalWins}</div><div class="sm-label">VICTORIAS TOTALES</div></div>
+            <div class="stat-mini"><div class="sm-val">${totalGames}</div><div class="sm-label">PARTIDAS JUGADAS</div></div>
+            <div class="stat-mini"><div class="sm-val">${bestTime === Infinity ? '--:--' : formatTime(bestTime)}</div><div class="sm-label">MEJOR TIEMPO</div></div>
+            <div class="stat-mini"><div class="sm-val">${isFinite(avgTimeAll) && avgTimeAll > 0 ? formatTime(Math.round(avgTimeAll)) : '--:--'}</div><div class="sm-label">TIEMPO PROMEDIO</div></div>
+        `;
+
+        const sorted = allEntries.sort((a,b) => b[1].wins - a[1].wins);
+
         if(sorted.length === 0) {
-            body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">No hay récords en esta dificultad.</td></tr>';
+            body.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#666;">No hay datos en ${diffLabel}.</td></tr>`;
         } else {
-            sorted.forEach(([name, data]) => {
-                const levelData = data[diff];
-                const row = `<tr>
+            sorted.forEach(([name, d]) => {
+                const avg = d.wins > 0 ? formatTime(Math.round(d.totalTime / d.wins)) : '--:--';
+                body.innerHTML += `<tr>
                     <td>${name}</td>
-                    <td>${levelData.wins}</td>
-                    <td>${levelData.best === Infinity ? '--:--' : formatTime(levelData.best)}</td>
+                    <td>${d.wins}</td>
+                    <td>${d.best === Infinity ? '--:--' : formatTime(d.best)}</td>
+                    <td>${avg}</td>
                 </tr>`;
-                body.innerHTML += row;
             });
         }
+
         document.getElementById('menu-screen').style.display = 'none';
         document.getElementById('stats-screen').style.display = 'block';
     }
@@ -305,8 +519,9 @@
     }
 
     function startNewGame() {
-        secs = 0; hints = 3; selected = null;
+        secs = 0; hints = 3; selected = null; errorCount = 0; isPencil = false;
         updateHintBtn();
+        updateErrorDots();
         generateSudoku();
         startTimer();
         render();
@@ -372,12 +587,43 @@
         }
     }
 
+    // ─── HELPERS DE POSICIÓN ───
+    function getRow(i) { return Math.floor(i / 9); }
+    function getCol(i) { return i % 9; }
+    function getBox(i) { return Math.floor(getRow(i) / 3) * 3 + Math.floor(getCol(i) / 3); }
+    function sameGroup(a, b) { return getRow(a)===getRow(b) || getCol(a)===getCol(b) || getBox(a)===getBox(b); }
+
+    // Indices de fila, columna y caja de un índice
+    function groupIndices(i) {
+        const r = getRow(i), c = getCol(i);
+        const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
+        const set = new Set();
+        for(let x=0;x<9;x++) { set.add(r*9+x); set.add(x*9+c); }
+        for(let x=0;x<3;x++) for(let y=0;y<3;y++) set.add((br+x)*9+(bc+y));
+        return set;
+    }
+
     function render() {
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
+
+        const selVal = (selected !== null && gridData[selected]) ? gridData[selected].val : 0;
+        const groupSet = selected !== null ? groupIndices(selected) : new Set();
+
         gridData.forEach((c, i) => {
             const div = document.createElement('div');
-            div.className = `cell ${c.fixed ? 'fixed' : ''} ${selected === i ? 'selected' : ''}`;
+            let cls = 'cell';
+            if (c.fixed) cls += ' fixed';
+            if (selected === i) {
+                cls += ' selected';
+            } else if (groupSet.has(i)) {
+                cls += ' same-group';
+                if (selVal && selVal !== 0 && c.val === selVal) cls += ' same-number';
+            } else if (selVal && selVal !== 0 && c.val === selVal) {
+                cls += ' same-number';
+            }
+            div.className = cls;
+
             if (c.val) div.innerText = c.val;
             else if (c.notes.length > 0) {
                 const nDiv = document.createElement('div'); nDiv.className = 'notes';
@@ -402,9 +648,94 @@
         } else {
             gridData[selected].val = n;
             gridData[selected].notes = [];
-            if (gridData.every((c,i) => c.val === solution[i])) win();
+
+            if (n !== solution[selected]) {
+                // Error
+                errorCount++;
+                updateErrorDots();
+                playSound(150, 0.4);
+                const cells = document.querySelectorAll('.cell');
+                cells[selected].classList.add('error');
+                setTimeout(() => { if(cells[selected]) cells[selected].classList.remove('error'); }, 1000);
+
+                if (errorCount >= MAX_ERRORS) {
+                    clearInterval(timer);
+                    if (users[currentUser] && users[currentUser][currentDiff]) {
+                        users[currentUser][currentDiff].games++;
+                        saveUsers();
+                    }
+                    clearSavedGame();
+                    setTimeout(() => {
+                        document.getElementById('gameover-modal').classList.add('show');
+                    }, 600);
+                    render();
+                    return;
+                }
+            } else {
+                // Número correcto → borrar ese número en notas de celdas del mismo grupo
+                erasePencilInGroup(selected, n);
+
+                // Verificar si se completó algún grupo (fila, col, caja)
+                checkGroupCompletion(selected);
+
+                if (gridData.every((c,i) => c.val === solution[i])) {
+                    win();
+                    return;
+                }
+            }
         }
+        if (currentUser) saveCurrentGame();
         render();
+    }
+
+    // Borra el número n de las notas de lápiz en todas las celdas del mismo grupo
+    function erasePencilInGroup(idx, n) {
+        groupIndices(idx).forEach(i => {
+            if (i !== idx && gridData[i].notes.includes(n)) {
+                gridData[i].notes.splice(gridData[i].notes.indexOf(n), 1);
+            }
+        });
+    }
+
+    // Verifica si la fila, columna o caja del índice quedan completas y correctas
+    function checkGroupCompletion(idx) {
+        const r = getRow(idx), c = getCol(idx);
+        const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
+
+        const rowIdx  = Array.from({length:9}, (_,x) => r*9+x);
+        const colIdx  = Array.from({length:9}, (_,x) => x*9+c);
+        const boxIdx  = [];
+        for(let x=0;x<3;x++) for(let y=0;y<3;y++) boxIdx.push((br+x)*9+(bc+y));
+
+        [rowIdx, colIdx, boxIdx].forEach(group => {
+            const complete = group.every(i => gridData[i].val !== 0 && gridData[i].val === solution[i]);
+            if (complete) flashGroup(group);
+        });
+    }
+
+    function flashGroup(indices) {
+        // Pequeño delay para que render() ya haya pintado
+        setTimeout(() => {
+            const cells = document.querySelectorAll('.cell');
+            indices.forEach((i, pos) => {
+                setTimeout(() => {
+                    if(cells[i]) {
+                        cells[i].classList.remove('group-complete');
+                        void cells[i].offsetWidth; // reflow para reiniciar animación
+                        cells[i].classList.add('group-complete');
+                        setTimeout(() => cells[i] && cells[i].classList.remove('group-complete'), 800);
+                    }
+                }, pos * 30);
+            });
+            playSound(440 + Math.random()*200, 0.15);
+        }, 10);
+    }
+
+    function updateErrorDots() {
+        for (let i = 1; i <= MAX_ERRORS; i++) {
+            const dot = document.getElementById(`ed${i}`);
+            if (dot) dot.classList.toggle('active', i <= errorCount);
+        }
     }
 
     function togglePencil() {
@@ -429,20 +760,18 @@
     function win() {
         clearInterval(timer);
         playSound(800, 0.6);
+        clearSavedGame();
         
-        // Se asegura de que la estructura exista por si es un perfil antiguo
-        if (!users[currentUser][currentDiff]) {
-            users[currentUser][currentDiff] = { wins: 0, best: Infinity };
-        }
+        ensureUserStructure(currentUser);
+        const d = users[currentUser][currentDiff];
+        d.wins++;
+        d.games++;
+        d.totalTime += secs;
+        if (secs < d.best) d.best = secs;
         
-        users[currentUser][currentDiff].wins++;
-        if (secs < users[currentUser][currentDiff].best) {
-            users[currentUser][currentDiff].best = secs;
-        }
-        
-        localStorage.setItem('sd_v6', JSON.stringify(users));
+        saveUsers();
         createCelebration();
-        setTimeout(() => { alert("¡Victoria!"); exitGame(); }, 3000);
+        setTimeout(() => { alert("¡Victoria! 🎉"); exitGame(); }, 3000);
     }
 
     function createCelebration() {
@@ -458,9 +787,38 @@
 
     function exitGame() {
         clearInterval(timer);
+        clearSavedGame();
+        document.getElementById('gameover-modal').classList.remove('show');
+        document.getElementById('exit-modal').classList.remove('show');
         document.getElementById('game-screen').style.display = 'none';
         document.getElementById('menu-screen').style.display = 'flex';
         updateUserSelect();
+        checkResumeButton();
+    }
+
+    function askExit() {
+        clearInterval(timer);
+        document.getElementById('exit-modal').classList.add('show');
+    }
+
+    function saveAndExit() {
+        saveCurrentGame();
+        exitGame();
+    }
+
+    function closeExitModal() {
+        document.getElementById('exit-modal').classList.remove('show');
+        startTimer();
+    }
+
+    function startNewGameFromModal() {
+        document.getElementById('gameover-modal').classList.remove('show');
+        startNewGame();
+    }
+
+    function exitFromModal() {
+        document.getElementById('gameover-modal').classList.remove('show');
+        exitGame();
     }
 
     function startTimer() {
@@ -489,6 +847,7 @@
     };
 
     updateUserSelect();
+    checkResumeButton();
 
     // Registro del Service Worker para PWA
     if ('serviceWorker' in navigator) {
