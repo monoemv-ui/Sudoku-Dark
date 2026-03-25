@@ -48,7 +48,6 @@
 
         .container { width: 100%; max-width: 450px; padding: 20px; z-index: 10; position: relative; }
 
-        /* Pantallas */
         #menu-screen { display: flex; flex-direction: column; gap: 20px; text-align: center; margin-top: 8vh; }
         #game-screen, #stats-screen { display: none; }
 
@@ -111,6 +110,17 @@
         .cell.error { color: var(--accent) !important; animation: shake 0.4s; }
         .cell.hint-focus { animation: pulse 1.5s infinite; background: #1a2a2a; }
 
+        /* Número completado (todos los 9 del mismo dígito) */
+        .cell.number-complete {
+            animation: numberComplete 0.6s ease-out forwards;
+        }
+        @keyframes numberComplete {
+            0%   { background: #0f0f0f; }
+            25%  { background: #2a1a3a; box-shadow: inset 0 0 14px var(--primary); color: #fff; }
+            60%  { background: #2a1a3a; box-shadow: inset 0 0 10px var(--primary); }
+            100% { background: #0f0f0f; }
+        }
+
         /* Modo Lápiz */
         .notes {
             display: grid;
@@ -131,12 +141,10 @@
             font-weight: 300;
         }
 
-        /* Resaltado de celdas relacionadas */
         .cell.same-group { background: #1a1a1a; }
         .cell.same-number { background: #1f1433; box-shadow: inset 0 0 6px rgba(187,134,252,0.35); }
         .cell.same-number.fixed { color: #d4aaff; }
 
-        /* Animación grupo completado */
         @keyframes groupFlash {
             0%   { background: #0f0f0f; }
             30%  { background: #1a2e1a; box-shadow: inset 0 0 12px var(--secondary); }
@@ -148,7 +156,6 @@
         @keyframes pulse { 50% { box-shadow: inset 0 0 15px var(--secondary); } }
         @keyframes shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 
-        /* Divisores 3x3 */
         .cell:nth-child(3n) { border-right: 2px solid #444; }
         .cell:nth-child(9n) { border-right: none; }
         .cell:nth-child(n+19):nth-child(-n+27), .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2px solid #444; }
@@ -161,7 +168,6 @@
         .btn-small.active { background: var(--primary); color: black; }
         .confetti { position: fixed; width: 8px; height: 8px; z-index: 100; border-radius: 2px; pointer-events: none; }
 
-        /* Contador de errores */
         .error-counter {
             display: flex; align-items: center; gap: 6px;
             font-size: 0.85rem; color: #888;
@@ -173,7 +179,7 @@
         }
         .error-dot.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 6px var(--accent); }
 
-        /* Modal de game over / reanudar */
+        /* Modal genérico */
         .modal-overlay {
             display: none; position: fixed; inset: 0;
             background: rgba(0,0,0,0.85); z-index: 200;
@@ -189,7 +195,33 @@
         .modal-box p { color: #aaa; margin: 0 0 25px; font-size: 0.95rem; }
         .modal-btn-group { display: flex; flex-direction: column; gap: 10px; }
 
-        /* Badge "Reanudar" en menú */
+        /* Modal de Victoria */
+        #win-modal .modal-box {
+            border-color: var(--primary);
+            box-shadow: 0 0 40px rgba(187,134,252,0.3);
+        }
+        #win-modal .modal-box h2 {
+            color: var(--primary);
+            font-size: 2.2rem;
+        }
+        .win-stats {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 10px; margin: 15px 0 25px;
+        }
+        .win-stat-item {
+            background: #0f0f0f; border: 1px solid #2a2a2a;
+            border-radius: 10px; padding: 12px;
+        }
+        .win-stat-item .wsi-val { font-size: 1.3rem; font-weight: bold; color: var(--secondary); }
+        .win-stat-item .wsi-label { font-size: 0.65rem; color: #666; margin-top: 2px; letter-spacing: 0.5px; }
+        .win-badge {
+            display: inline-block; background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: black; font-weight: bold; font-size: 0.75rem;
+            padding: 4px 12px; border-radius: 20px; margin: 0 0 10px;
+            letter-spacing: 1px;
+        }
+
+        /* Badge Reanudar */
         .resume-badge {
             background: #1a1a2e; border: 1px solid var(--primary);
             border-radius: 12px; padding: 14px 18px;
@@ -202,7 +234,7 @@
         .resume-badge .rb-detail { font-size: 0.95rem; color: var(--text); margin-top: 2px; }
         .resume-badge .rb-arrow { font-size: 1.5rem; color: var(--primary); }
 
-        /* Stats mejoradas */
+        /* Stats summary */
         .stats-summary {
             display: grid; grid-template-columns: 1fr 1fr;
             gap: 10px; margin-bottom: 15px;
@@ -214,6 +246,21 @@
         }
         .stat-mini .sm-val { font-size: 1.4rem; font-weight: bold; color: var(--primary); }
         .stat-mini .sm-label { font-size: 0.65rem; color: #666; margin-top: 2px; letter-spacing: 0.5px; }
+
+        /* Tabla de errores por partida */
+        .errors-breakdown {
+            display: flex; gap: 6px; justify-content: center;
+            margin: 12px 0; flex-wrap: wrap;
+        }
+        .err-pill {
+            background: #0f0f0f; border: 1px solid #2a2a2a;
+            border-radius: 8px; padding: 6px 10px;
+            text-align: center; min-width: 44px;
+        }
+        .err-pill .ep-val { font-size: 1rem; font-weight: bold; color: var(--secondary); }
+        .err-pill .ep-label { font-size: 0.6rem; color: #555; margin-top: 1px; }
+        .err-pill.ep-lost .ep-val { color: var(--accent); }
+        .err-pill.ep-perfect .ep-val { color: #ffd700; }
     </style>
 </head>
 <body>
@@ -224,7 +271,6 @@
         <div id="menu-screen">
             <h1>Sudoku Dark</h1>
 
-            <!-- Badge partida guardada -->
             <div id="resume-section" style="display:none;" onclick="resumeGame()">
                 <div class="resume-badge">
                     <div class="rb-info">
@@ -264,10 +310,12 @@
                     <option value="26">Difícil</option>
                 </select>
 
-                <!-- Resumen global de la dificultad -->
                 <div class="stats-summary" id="stats-summary"></div>
 
-                <div style="max-height: 220px; overflow-y: auto;">
+                <!-- Desglose por errores -->
+                <div id="errors-breakdown-section" style="margin-bottom:10px;"></div>
+
+                <div style="max-height: 200px; overflow-y: auto;">
                     <table class="stats-table" id="stats-body">
                         <thead>
                             <tr>
@@ -316,7 +364,7 @@
                 <button class="btn-small" onclick="handleInput(null)">⌫</button>
             </div>
         </div>
-    </div><!-- end container -->
+    </div>
 
     <!-- Modal Game Over -->
     <div class="modal-overlay" id="gameover-modal">
@@ -330,7 +378,7 @@
         </div>
     </div>
 
-    <!-- Modal Salir con guardado -->
+    <!-- Modal Salir -->
     <div class="modal-overlay" id="exit-modal">
         <div class="modal-box">
             <h2 style="color: var(--primary);">¿Salir?</h2>
@@ -342,9 +390,22 @@
         </div>
     </div>
 
+    <!-- Modal Victoria -->
+    <div class="modal-overlay" id="win-modal">
+        <div class="modal-box">
+            <div class="win-badge" id="win-badge">¡VICTORIA!</div>
+            <h2 id="win-title">🏆 ¡Ganaste!</h2>
+            <p id="win-subtitle" style="color:#aaa; margin:0 0 5px; font-size:0.9rem;"></p>
+            <div class="win-stats" id="win-stats"></div>
+            <div class="modal-btn-group">
+                <button class="btn-main" onclick="startNewGameFromWin()">NUEVA PARTIDA</button>
+                <button class="btn-main btn-outline" onclick="exitFromWin()">VOLVER AL MENÚ</button>
+            </div>
+        </div>
+    </div>
+
 <script>
     // ─── MIGRACIÓN DE DATOS VIEJOS ───
-    // Busca datos en claves antiguas (sd_v6, sd_v5) y los migra a sd_v7
     function migrateOldData() {
         const oldKeys = ['sd_v6', 'sd_v5', 'sudoku_users', 'sd_users'];
         for (const key of oldKeys) {
@@ -353,20 +414,13 @@
                 if (!raw) continue;
                 const oldData = JSON.parse(raw);
                 if (!oldData || typeof oldData !== 'object') continue;
+                if (Object.keys(oldData).length === 0) continue;
 
-                // Verificar que tiene al menos un usuario con datos
-                const hasUsers = Object.keys(oldData).length > 0;
-                if (!hasUsers) continue;
-
-                console.log(`[Migración] Encontrados datos en ${key}, migrando...`);
-
-                // Fusionar con sd_v7 existente (no sobreescribir si ya hay datos nuevos)
                 let current = {};
                 try { current = JSON.parse(localStorage.getItem('sd_v7')) || {}; } catch(e) {}
 
                 Object.entries(oldData).forEach(([name, data]) => {
-                    if (current[name]) return; // ya existe en v7, no pisar
-                    // Normalizar estructura
+                    if (current[name]) return;
                     current[name] = {
                         "42": normalizeLevel(data["42"]),
                         "34": normalizeLevel(data["34"]),
@@ -375,31 +429,27 @@
                 });
 
                 localStorage.setItem('sd_v7', JSON.stringify(current));
-                // Limpiar clave vieja para no migrar dos veces
                 localStorage.removeItem(key);
-                console.log(`[Migración] Completada desde ${key}`);
-                return current;
-            } catch(e) {
-                console.warn(`[Migración] Error con ${key}:`, e);
-            }
+            } catch(e) {}
         }
         return null;
     }
 
     function normalizeLevel(lvl) {
-        if (!lvl) return { wins: 0, best: Infinity, totalTime: 0, games: 0 };
+        if (!lvl) return { wins: 0, best: Infinity, totalTime: 0, games: 0, losses: 0, errorBuckets: [0,0,0,0,0] };
         return {
-            wins:      lvl.wins      || 0,
-            best:      (lvl.best === null || lvl.best === undefined) ? Infinity : lvl.best,
-            totalTime: lvl.totalTime || (lvl.wins ? (lvl.best !== Infinity ? lvl.best * lvl.wins : 0) : 0),
-            games:     lvl.games     || lvl.wins || 0
+            wins:         lvl.wins         || 0,
+            best:         (lvl.best === null || lvl.best === undefined) ? Infinity : lvl.best,
+            totalTime:    lvl.totalTime    || 0,
+            games:        lvl.games        || lvl.wins || 0,
+            losses:       lvl.losses       || 0,
+            // errorBuckets[i] = partidas ganadas con exactamente i errores (0..4, pero 4 es game over)
+            errorBuckets: lvl.errorBuckets || [0,0,0,0,0]
         };
     }
 
-    // Ejecutar migración antes de cargar datos
     migrateOldData();
 
-    // sd_v7: estructura con errores, promedio y partida guardada
     let users = JSON.parse(localStorage.getItem('sd_v7')) || {};
     let currentUser = "";
     let currentDiff = "42";
@@ -408,31 +458,115 @@
     let errorCount = 0;
     const MAX_ERRORS = 4;
 
+    // ─── AUDIO ENGINE ───
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function playSound(freq = 440, duration = 0.1) {
+
+    function resumeAudio() {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    // Sonido básico de tono
+    function playTone(freq, duration, type = 'sine', volume = 0.3) {
+        resumeAudio();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
+        osc.type = type;
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(volume, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
         osc.connect(gain); gain.connect(audioCtx.destination);
         osc.start(); osc.stop(audioCtx.currentTime + duration);
     }
 
+    // Sonido al colocar número (suave)
+    function playInputSound(n) {
+        resumeAudio();
+        playTone(280 + n * 28, 0.1, 'triangle', 0.2);
+    }
+
+    // Sonido de borrar
+    function playEraseSound() {
+        resumeAudio();
+        playTone(180, 0.08, 'sine', 0.15);
+    }
+
+    // Sonido de ERROR – más impactante (dos tonos descendentes)
+    function playErrorSound() {
+        resumeAudio();
+        playTone(220, 0.15, 'sawtooth', 0.4);
+        setTimeout(() => playTone(150, 0.25, 'sawtooth', 0.35), 120);
+    }
+
+    // Sonido al completar fila/columna/caja
+    function playGroupSound() {
+        resumeAudio();
+        playTone(523, 0.12, 'sine', 0.25);
+        setTimeout(() => playTone(659, 0.12, 'sine', 0.22), 100);
+        setTimeout(() => playTone(784, 0.18, 'sine', 0.2), 200);
+    }
+
+    // Sonido al completar todos los de un número (ej: todos los 5)
+    function playNumberCompleteSound() {
+        resumeAudio();
+        // Arpegio ascendente brillante
+        const freqs = [523, 659, 784, 1047];
+        freqs.forEach((f, i) => {
+            setTimeout(() => playTone(f, 0.18, 'triangle', 0.28), i * 80);
+        });
+        setTimeout(() => playTone(1319, 0.3, 'triangle', 0.3), freqs.length * 80);
+    }
+
+    // Sonido de sugerencia
+    function playHintSound() {
+        resumeAudio();
+        playTone(600, 0.1, 'sine', 0.22);
+        setTimeout(() => playTone(750, 0.15, 'sine', 0.2), 100);
+    }
+
+    // Sonido de VICTORIA – fanfarria épica
+    function playWinSound() {
+        resumeAudio();
+        const melody = [
+            { f: 523, t: 0 },   // C5
+            { f: 659, t: 120 },  // E5
+            { f: 784, t: 240 },  // G5
+            { f: 1047,t: 360 },  // C6
+            { f: 880, t: 520 },  // A5
+            { f: 1047,t: 640 },  // C6
+            { f: 1319,t: 780 },  // E6
+        ];
+        melody.forEach(({ f, t }) => {
+            setTimeout(() => playTone(f, 0.22, 'triangle', 0.3), t);
+        });
+        // Acorde final
+        setTimeout(() => {
+            playTone(523, 0.6, 'sine', 0.2);
+            playTone(659, 0.6, 'sine', 0.2);
+            playTone(784, 0.6, 'sine', 0.2);
+            playTone(1047,0.6, 'sine', 0.18);
+        }, 1000);
+    }
+
+    // ─── USERS ───
     function toggleNewUser(v) { document.getElementById('new-user-input').style.display = v === 'new' ? 'block' : 'none'; }
 
     function ensureUserStructure(name) {
         if (!users[name]) {
             users[name] = {
-                "42": { wins: 0, best: Infinity, totalTime: 0, games: 0 },
-                "34": { wins: 0, best: Infinity, totalTime: 0, games: 0 },
-                "26": { wins: 0, best: Infinity, totalTime: 0, games: 0 }
+                "42": normalizeLevel(null),
+                "34": normalizeLevel(null),
+                "26": normalizeLevel(null)
             };
         }
-        // Migrar perfil antiguo sin totalTime/games
         ["42","34","26"].forEach(d => {
-            if (!users[name][d]) users[name][d] = { wins: 0, best: Infinity, totalTime: 0, games: 0 };
-            if (users[name][d].totalTime === undefined) users[name][d].totalTime = 0;
-            if (users[name][d].games === undefined) users[name][d].games = users[name][d].wins || 0;
+            if (!users[name][d]) users[name][d] = normalizeLevel(null);
+            const lvl = users[name][d];
+            if (lvl.totalTime === undefined) lvl.totalTime = 0;
+            if (lvl.games    === undefined) lvl.games = lvl.wins || 0;
+            if (lvl.losses   === undefined) lvl.losses = 0;
+            if (!lvl.errorBuckets)          lvl.errorBuckets = [0,0,0,0,0];
+            // Corregir best: si es 0 y no hay wins reales, poner Infinity
+            if (lvl.best === 0 && lvl.wins === 0) lvl.best = Infinity;
         });
     }
 
@@ -442,15 +576,13 @@
     function saveCurrentGame() {
         const saved = {
             user: currentUser, diff: currentDiff,
-            gridData: gridData, solution: solution,
-            secs: secs, hints: hints, errorCount: errorCount
+            gridData, solution, secs, hints, errorCount
         };
         localStorage.setItem('sd_savedGame', JSON.stringify(saved));
     }
 
     function loadSavedGame() {
-        try { return JSON.parse(localStorage.getItem('sd_savedGame')); }
-        catch(e) { return null; }
+        try { return JSON.parse(localStorage.getItem('sd_savedGame')); } catch(e) { return null; }
     }
 
     function clearSavedGame() { localStorage.removeItem('sd_savedGame'); }
@@ -479,7 +611,6 @@
         hints = saved.hints !== undefined ? saved.hints : 3;
         errorCount = saved.errorCount || 0;
 
-        // Asegurar que el usuario existe
         ensureUserStructure(currentUser);
         saveUsers();
 
@@ -498,9 +629,7 @@
     function initGame() {
         const sel = document.getElementById('user-select');
         if(!sel.value) return alert("Por favor, elige o crea un perfil.");
-        
         currentDiff = document.getElementById('diff-select').value;
-        
         if(sel.value === 'new') {
             const name = document.getElementById('new-user-input').value.trim();
             if(!name) return alert("Escribe un nombre.");
@@ -510,7 +639,6 @@
             currentUser = sel.value;
             ensureUserStructure(currentUser);
         }
-        
         saveUsers();
         clearSavedGame();
         document.getElementById('menu-screen').style.display = 'none';
@@ -519,6 +647,7 @@
         startNewGame();
     }
 
+    // ─── ESTADÍSTICAS ───
     function showStats() {
         const filterEl = document.getElementById('stats-filter');
         const diff = filterEl ? filterEl.value : "42";
@@ -527,39 +656,61 @@
         const body = document.querySelector('#stats-body tbody');
         body.innerHTML = '';
 
-        const allEntries = Object.entries(users)
-            .map(([name, data]) => {
-                ensureUserStructure(name);
-                return [name, data[diff]];
-            })
-            .filter(([_, d]) => d.wins > 0 || d.games > 0);
+        const allEntries = Object.entries(users).map(([name, data]) => {
+            ensureUserStructure(name);
+            return [name, data[diff]];
+        }).filter(([_, d]) => d.wins > 0 || d.games > 0 || d.losses > 0);
 
-        // Stats globales de la dificultad
-        const totalWins = allEntries.reduce((s,[_,d]) => s + d.wins, 0);
-        const totalGames = allEntries.reduce((s,[_,d]) => s + d.games, 0);
-        const bestTime = allEntries.reduce((b,[_,d]) => d.best < b ? d.best : b, Infinity);
-        const avgTimeAll = allEntries.filter(([_,d]) => d.wins > 0)
-            .reduce((s,[_,d]) => { return s + (d.wins > 0 ? d.totalTime / d.wins : 0); }, 0)
-            / Math.max(allEntries.filter(([_,d]) => d.wins > 0).length, 1);
+        // ─ Totales globales ─
+        const totalWins   = allEntries.reduce((s,[_,d]) => s + d.wins, 0);
+        const totalGames  = allEntries.reduce((s,[_,d]) => s + d.games, 0);
+        const totalLosses = allEntries.reduce((s,[_,d]) => s + d.losses, 0);
+
+        // Mejor tiempo: solo considerar valores finitos > 0
+        const bestTime = allEntries.reduce((b,[_,d]) => {
+            const v = d.best;
+            return (typeof v === 'number' && isFinite(v) && v > 0 && v < b) ? v : b;
+        }, Infinity);
+
+        const winsWithTime = allEntries.filter(([_,d]) => d.wins > 0 && d.totalTime > 0);
+        const avgTimeAll = winsWithTime.length > 0
+            ? winsWithTime.reduce((s,[_,d]) => s + d.totalTime / d.wins, 0) / winsWithTime.length
+            : 0;
 
         document.getElementById('stats-summary').innerHTML = `
-            <div class="stat-mini"><div class="sm-val">${totalWins}</div><div class="sm-label">VICTORIAS TOTALES</div></div>
-            <div class="stat-mini"><div class="sm-val">${totalGames}</div><div class="sm-label">PARTIDAS JUGADAS</div></div>
+            <div class="stat-mini"><div class="sm-val">${totalWins}</div><div class="sm-label">VICTORIAS</div></div>
+            <div class="stat-mini"><div class="sm-val">${totalLosses}</div><div class="sm-label">DERROTAS</div></div>
             <div class="stat-mini"><div class="sm-val">${bestTime === Infinity ? '--:--' : formatTime(bestTime)}</div><div class="sm-label">MEJOR TIEMPO</div></div>
-            <div class="stat-mini"><div class="sm-val">${isFinite(avgTimeAll) && avgTimeAll > 0 ? formatTime(Math.round(avgTimeAll)) : '--:--'}</div><div class="sm-label">TIEMPO PROMEDIO</div></div>
+            <div class="stat-mini"><div class="sm-val">${avgTimeAll > 0 ? formatTime(Math.round(avgTimeAll)) : '--:--'}</div><div class="sm-label">TIEMPO PROMEDIO</div></div>
         `;
 
-        const sorted = allEntries.sort((a,b) => b[1].wins - a[1].wins);
+        // ─ Desglose por errores ─
+        const buckets = [0,0,0,0,0];
+        allEntries.forEach(([_,d]) => {
+            if (d.errorBuckets) d.errorBuckets.forEach((v,i) => { buckets[i] += v; });
+        });
+        const bucketLabels = ['0 errores','1 error','2 errores','3 errores','Derrotas'];
+        const bucketClasses = ['ep-perfect','','','','ep-lost'];
+        let breakdownHTML = '<div class="errors-breakdown">';
+        buckets.forEach((v, i) => {
+            const cls = bucketClasses[i] ? `err-pill ${bucketClasses[i]}` : 'err-pill';
+            breakdownHTML += `<div class="${cls}"><div class="ep-val">${v}</div><div class="ep-label">${bucketLabels[i]}</div></div>`;
+        });
+        breakdownHTML += '</div>';
+        document.getElementById('errors-breakdown-section').innerHTML = breakdownHTML;
 
+        // ─ Tabla por jugador ─
+        const sorted = [...allEntries].sort((a,b) => b[1].wins - a[1].wins);
         if(sorted.length === 0) {
             body.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#666;">No hay datos en ${diffLabel}.</td></tr>`;
         } else {
             sorted.forEach(([name, d]) => {
-                const avg = d.wins > 0 ? formatTime(Math.round(d.totalTime / d.wins)) : '--:--';
+                const best = (typeof d.best === 'number' && isFinite(d.best) && d.best > 0) ? formatTime(d.best) : '--:--';
+                const avg  = d.wins > 0 && d.totalTime > 0 ? formatTime(Math.round(d.totalTime / d.wins)) : '--:--';
                 body.innerHTML += `<tr>
                     <td>${name}</td>
                     <td>${d.wins}</td>
-                    <td>${d.best === Infinity ? '--:--' : formatTime(d.best)}</td>
+                    <td>${best}</td>
                     <td>${avg}</td>
                 </tr>`;
             });
@@ -574,6 +725,7 @@
         document.getElementById('menu-screen').style.display = 'flex';
     }
 
+    // ─── JUEGO ───
     function startNewGame() {
         secs = 0; hints = 3; selected = null; errorCount = 0; isPencil = false;
         updateHintBtn();
@@ -633,7 +785,7 @@
             foundIdx = empty[Math.floor(Math.random()*empty.length)];
         }
         if(foundIdx !== -1) {
-            playSound(600, 0.2);
+            playHintSound();
             selected = foundIdx; render();
             const cells = document.querySelectorAll('.cell');
             cells[foundIdx].classList.add('hint-focus');
@@ -643,13 +795,11 @@
         }
     }
 
-    // ─── HELPERS DE POSICIÓN ───
     function getRow(i) { return Math.floor(i / 9); }
     function getCol(i) { return i % 9; }
     function getBox(i) { return Math.floor(getRow(i) / 3) * 3 + Math.floor(getCol(i) / 3); }
     function sameGroup(a, b) { return getRow(a)===getRow(b) || getCol(a)===getCol(b) || getBox(a)===getBox(b); }
 
-    // Indices de fila, columna y caja de un índice
     function groupIndices(i) {
         const r = getRow(i), c = getCol(i);
         const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
@@ -662,7 +812,6 @@
     function render() {
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
-
         const selVal = (selected !== null && gridData[selected]) ? gridData[selected].val : 0;
         const groupSet = selected !== null ? groupIndices(selected) : new Set();
 
@@ -695,9 +844,14 @@
 
     function handleInput(n) {
         if (selected === null || gridData[selected].fixed) return;
-        playSound(n ? 300 + (n * 30) : 200);
-        if (n === null) { gridData[selected].val = 0; gridData[selected].notes = []; }
-        else if (isPencil) {
+        resumeAudio();
+
+        if (n === null) {
+            playEraseSound();
+            gridData[selected].val = 0;
+            gridData[selected].notes = [];
+        } else if (isPencil) {
+            playInputSound(n);
             gridData[selected].val = 0;
             let ns = gridData[selected].notes;
             ns.includes(n) ? ns.splice(ns.indexOf(n), 1) : ns.push(n);
@@ -706,20 +860,24 @@
             gridData[selected].notes = [];
 
             if (n !== solution[selected]) {
-                // Error
+                // ── ERROR ──
                 errorCount++;
                 updateErrorDots();
-                playSound(150, 0.4);
+                playErrorSound();
+
                 const cells = document.querySelectorAll('.cell');
                 cells[selected].classList.add('error');
-                setTimeout(() => { if(cells[selected]) cells[selected].classList.remove('error'); }, 1000);
+                setTimeout(() => { if(cells[selected]) cells[selected].classList.remove('error'); }, 800);
 
                 if (errorCount >= MAX_ERRORS) {
                     clearInterval(timer);
-                    if (users[currentUser] && users[currentUser][currentDiff]) {
-                        users[currentUser][currentDiff].games++;
-                        saveUsers();
-                    }
+                    ensureUserStructure(currentUser);
+                    const d = users[currentUser][currentDiff];
+                    d.games++;
+                    d.losses++;
+                    // bucket 4 = derrota
+                    d.errorBuckets[4]++;
+                    saveUsers();
                     clearSavedGame();
                     setTimeout(() => {
                         document.getElementById('gameover-modal').classList.add('show');
@@ -728,11 +886,11 @@
                     return;
                 }
             } else {
-                // Número correcto → borrar ese número en notas de celdas del mismo grupo
+                // ── CORRECTO ──
+                playInputSound(n);
                 erasePencilInGroup(selected, n);
-
-                // Verificar si se completó algún grupo (fila, col, caja)
                 checkGroupCompletion(selected);
+                checkNumberCompletion(n);
 
                 if (gridData.every((c,i) => c.val === solution[i])) {
                     win();
@@ -744,7 +902,6 @@
         render();
     }
 
-    // Borra el número n de las notas de lápiz en todas las celdas del mismo grupo
     function erasePencilInGroup(idx, n) {
         groupIndices(idx).forEach(i => {
             if (i !== idx && gridData[i].notes.includes(n)) {
@@ -753,37 +910,58 @@
         });
     }
 
-    // Verifica si la fila, columna o caja del índice quedan completas y correctas
     function checkGroupCompletion(idx) {
         const r = getRow(idx), c = getCol(idx);
         const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
-
-        const rowIdx  = Array.from({length:9}, (_,x) => r*9+x);
-        const colIdx  = Array.from({length:9}, (_,x) => x*9+c);
-        const boxIdx  = [];
+        const rowIdx = Array.from({length:9}, (_,x) => r*9+x);
+        const colIdx = Array.from({length:9}, (_,x) => x*9+c);
+        const boxIdx = [];
         for(let x=0;x<3;x++) for(let y=0;y<3;y++) boxIdx.push((br+x)*9+(bc+y));
 
+        let groupCompleted = false;
         [rowIdx, colIdx, boxIdx].forEach(group => {
             const complete = group.every(i => gridData[i].val !== 0 && gridData[i].val === solution[i]);
-            if (complete) flashGroup(group);
+            if (complete) { flashGroup(group); groupCompleted = true; }
         });
+        if (groupCompleted) playGroupSound();
+    }
+
+    // Verifica si todos los 9 dígitos de un número n ya fueron colocados
+    function checkNumberCompletion(n) {
+        const count = gridData.filter(c => c.val === n).length;
+        if (count === 9) {
+            playNumberCompleteSound();
+            // Animar todas las celdas con ese número
+            setTimeout(() => {
+                const cells = document.querySelectorAll('.cell');
+                gridData.forEach((c, i) => {
+                    if (c.val === n) {
+                        cells[i].classList.add('number-complete');
+                        setTimeout(() => cells[i] && cells[i].classList.remove('number-complete'), 700);
+                    }
+                });
+                document.getElementById('hint-msg').innerText = `¡Todos los ${n}s completados! ✓`;
+                setTimeout(() => {
+                    if (document.getElementById('hint-msg'))
+                        document.getElementById('hint-msg').innerText = 'Concentración...';
+                }, 2500);
+            }, 30);
+        }
     }
 
     function flashGroup(indices) {
-        // Pequeño delay para que render() ya haya pintado
         setTimeout(() => {
             const cells = document.querySelectorAll('.cell');
             indices.forEach((i, pos) => {
                 setTimeout(() => {
                     if(cells[i]) {
                         cells[i].classList.remove('group-complete');
-                        void cells[i].offsetWidth; // reflow para reiniciar animación
+                        void cells[i].offsetWidth;
                         cells[i].classList.add('group-complete');
                         setTimeout(() => cells[i] && cells[i].classList.remove('group-complete'), 800);
                     }
                 }, pos * 30);
             });
-            playSound(440 + Math.random()*200, 0.15);
         }, 10);
     }
 
@@ -810,34 +988,83 @@
             }
         });
         document.getElementById('hint-msg').innerText = err > 0 ? `Hay ${err} errores.` : "Vas por buen camino.";
-        if(err > 0) playSound(150, 0.4);
+        if(err > 0) playErrorSound();
     }
 
+    // ─── VICTORIA ───
     function win() {
         clearInterval(timer);
-        playSound(800, 0.6);
         clearSavedGame();
-        
+
         ensureUserStructure(currentUser);
         const d = users[currentUser][currentDiff];
+        const isNewBest = (typeof d.best !== 'number' || !isFinite(d.best) || d.best <= 0 || secs < d.best);
         d.wins++;
         d.games++;
         d.totalTime += secs;
-        if (secs < d.best) d.best = secs;
-        
+        if (isNewBest) d.best = secs;
+        // Registrar bucket de errores (0 a 3 = victorias con ese nº de errores)
+        const bucket = Math.min(errorCount, 3);
+        d.errorBuckets[bucket]++;
         saveUsers();
+
+        // Mostrar modal de victoria con stats
+        const diffLabel = { "42": "Fácil", "34": "Medio", "26": "Difícil" }[currentDiff];
+        const perfMessages = ["¡Partida perfecta! Sin errores 🌟", "¡Excelente! Solo 1 error 👏", "¡Bien jugado! 2 errores 💪", "¡Lograste completarlo! 3 errores 🎯"];
+        document.getElementById('win-subtitle').innerText = perfMessages[errorCount] || '';
+        document.getElementById('win-badge').innerText = isNewBest ? '🏆 NUEVO RÉCORD' : '¡VICTORIA!';
+        document.getElementById('win-badge').style.background = isNewBest
+            ? 'linear-gradient(45deg, #ffd700, #ff8c00)'
+            : 'linear-gradient(45deg, var(--primary), var(--secondary))';
+
+        const prevBest = isNewBest ? '—' : formatTime(d.best);
+        document.getElementById('win-stats').innerHTML = `
+            <div class="win-stat-item"><div class="wsi-val">${formatTime(secs)}</div><div class="wsi-label">TIEMPO</div></div>
+            <div class="win-stat-item"><div class="wsi-val">${errorCount}</div><div class="wsi-label">ERRORES</div></div>
+            <div class="win-stat-item"><div class="wsi-val">${d.wins}</div><div class="wsi-label">VICTORIAS ${diffLabel.toUpperCase()}</div></div>
+            <div class="win-stat-item"><div class="wsi-val">${isNewBest ? formatTime(secs) : prevBest}</div><div class="wsi-label">${isNewBest ? 'NUEVO RÉCORD ✨' : 'TU RÉCORD'}</div></div>
+        `;
+
+        // Efectos
+        playWinSound();
         createCelebration();
-        setTimeout(() => { alert("¡Victoria! 🎉"); exitGame(); }, 3000);
+
+        setTimeout(() => {
+            document.getElementById('win-modal').classList.add('show');
+        }, 800);
+    }
+
+    function startNewGameFromWin() {
+        document.getElementById('win-modal').classList.remove('show');
+        startNewGame();
+    }
+
+    function exitFromWin() {
+        document.getElementById('win-modal').classList.remove('show');
+        exitGame();
     }
 
     function createCelebration() {
-        for(let i=0; i<60; i++) {
-            const c = document.createElement('div'); c.className = 'confetti';
+        const colors = ['var(--primary)', 'var(--secondary)', '#ffd700', '#ff0266', '#00e5ff'];
+        for(let i=0; i<80; i++) {
+            const c = document.createElement('div');
+            c.className = 'confetti';
             c.style.left = Math.random() * 100 + 'vw';
-            c.style.backgroundColor = Math.random() > 0.5 ? 'var(--primary)' : 'var(--secondary)';
+            c.style.top = '-10px';
+            c.style.width = (Math.random() * 8 + 5) + 'px';
+            c.style.height = (Math.random() * 8 + 5) + 'px';
+            c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
             document.body.appendChild(c);
-            c.animate([{ top: '-10px', opacity: 1 }, { top: '100vh', opacity: 0 }], { duration: 2000 + Math.random()*2000 });
-            setTimeout(() => c.remove(), 4000);
+            const delay = Math.random() * 600;
+            const dur   = 2000 + Math.random() * 2500;
+            setTimeout(() => {
+                c.animate([
+                    { top: '-10px', opacity: 1, transform: `rotate(0deg) translateX(0)` },
+                    { top: '100vh', opacity: 0, transform: `rotate(${Math.random()*720 - 360}deg) translateX(${Math.random()*60-30}px)` }
+                ], { duration: dur, easing: 'ease-in' });
+            }, delay);
+            setTimeout(() => c.remove(), delay + dur + 100);
         }
     }
 
@@ -846,6 +1073,7 @@
         clearSavedGame();
         document.getElementById('gameover-modal').classList.remove('show');
         document.getElementById('exit-modal').classList.remove('show');
+        document.getElementById('win-modal').classList.remove('show');
         document.getElementById('game-screen').style.display = 'none';
         document.getElementById('menu-screen').style.display = 'flex';
         updateUserSelect();
@@ -857,10 +1085,7 @@
         document.getElementById('exit-modal').classList.add('show');
     }
 
-    function saveAndExit() {
-        saveCurrentGame();
-        exitGame();
-    }
+    function saveAndExit() { saveCurrentGame(); exitGame(); }
 
     function closeExitModal() {
         document.getElementById('exit-modal').classList.remove('show');
@@ -882,7 +1107,11 @@
         timer = setInterval(() => { secs++; document.getElementById('timer').innerText = formatTime(secs); }, 1000);
     }
 
-    function formatTime(s) { return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`; }
+    function formatTime(s) {
+        if (!s || !isFinite(s) || s <= 0) return '--:--';
+        return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+    }
+
     function updateHintBtn() { document.getElementById('hint-btn').innerText = `Sugerencia (${hints})`; }
 
     function updateUserSelect() {
@@ -898,14 +1127,17 @@
     }
 
     window.onkeydown = (e) => {
-        if (e.key >= 1 && e.key <= 9) handleInput(parseInt(e.key));
+        if (e.key >= '1' && e.key <= '9') handleInput(parseInt(e.key));
         if (e.key === 'Backspace') handleInput(null);
     };
+
+    // Reanudar AudioContext en primer toque (política de navegadores)
+    document.addEventListener('touchstart', resumeAudio, { once: true });
+    document.addEventListener('click', resumeAudio, { once: true });
 
     updateUserSelect();
     checkResumeButton();
 
-    // Registro del Service Worker para PWA
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./service-worker.js')
@@ -916,3 +1148,4 @@
 </script>
 </body>
 </html>
+
