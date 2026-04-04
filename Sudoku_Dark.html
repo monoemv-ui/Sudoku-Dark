@@ -1389,7 +1389,37 @@
     loadUserProfiles();
     checkResumeButton();
 
+    // ─── SERVICE WORKER: registro con versión automática ───
+    // Cambiar BUILD_VERSION con cada deploy para forzar caché nuevo en la PWA
+    if ('serviceWorker' in navigator) {
+        const BUILD_VERSION = '20260404-2'; // ← incrementar con cada deploy
+
+        navigator.serviceWorker.register('./service-worker.js')
+            .then((reg) => {
+                console.log('[PWA] SW registrado:', reg.scope);
+                // Si hay una versión nueva esperando, activarla de inmediato
+                const waiting = reg.waiting || reg.installing;
+                if (waiting) waiting.postMessage('SKIP_WAITING');
+                reg.addEventListener('updatefound', () => {
+                    const sw = reg.installing;
+                    sw.addEventListener('statechange', () => {
+                        if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                            sw.postMessage('SKIP_WAITING');
+                        }
+                    });
+                });
+            })
+            .catch(err => console.warn('[PWA] Error SW:', err));
+
+        // Al cambiar de controlador, recargar para mostrar la versión nueva
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) { refreshing = true; window.location.reload(); }
+        });
+    }
+
 </script>
 </body>
 </html>
+
 
