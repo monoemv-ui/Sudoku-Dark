@@ -161,7 +161,7 @@
         .cell:nth-child(n+19):nth-child(-n+27), .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2px solid #444; }
 
         .controls, .numpad { display: grid; gap: 8px; margin-top: 10px; }
-        .controls { grid-template-columns: 1fr 1fr; }
+        .controls { grid-template-columns: 1fr 1fr 1fr; }
         .numpad { grid-template-columns: repeat(5, 1fr); }
         
         .btn-small { background: #1a1a1a; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; cursor: pointer; }
@@ -347,8 +347,7 @@
             <div class="sudoku-grid" id="grid"></div>
             <div class="controls">
                 <button class="btn-small" id="pencil-btn" onclick="togglePencil()">Lápiz: OFF</button>
-                <button class="btn-small" id="hint-btn" onclick="giveStrategicHint()">Sugerencia (3)</button>
-                <button class="btn-small" onclick="checkErrors()">Revisar</button>
+                <button class="btn-small" id="hint-btn" onclick="giveStrategicHint()">💡 Maestro</button>
                 <button class="btn-small" onclick="askExit()" style="color:var(--accent)">Salir</button>
             </div>
             <div class="numpad">
@@ -453,7 +452,7 @@
     let users = JSON.parse(localStorage.getItem('sd_v7')) || {};
     let currentUser = "";
     let currentDiff = "42";
-    let gridData = [], solution = [], selected = null, isPencil = false, hints = 3;
+    let gridData = [], solution = [], selected = null, isPencil = false, hints = Infinity;
     let timer, secs = 0;
     let errorCount = 0;
     const MAX_ERRORS = 4;
@@ -608,7 +607,7 @@
         gridData = saved.gridData;
         solution = saved.solution;
         secs = saved.secs || 0;
-        hints = saved.hints !== undefined ? saved.hints : 3;
+        hints = Infinity;
         errorCount = saved.errorCount || 0;
 
         ensureUserStructure(currentUser);
@@ -727,7 +726,7 @@
 
     // ─── JUEGO ───
     function startNewGame() {
-        secs = 0; hints = 3; selected = null; errorCount = 0; isPencil = false;
+        secs = 0; hints = Infinity; selected = null; errorCount = 0; isPencil = false;
         updateHintBtn();
         updateErrorDots();
         generateSudoku();
@@ -736,29 +735,66 @@
     }
 
     function generateSudoku() {
-        solution = Array(81).fill(0);
-        const fill = (b) => {
-            let i = b.indexOf(0); if (i === -1) return true;
-            let ns = [1,2,3,4,5,6,7,8,9].sort(()=>Math.random()-0.5);
-            for (let n of ns) { if (isSafe(b, i, n)) { b[i] = n; if (fill(b)) return true; b[i] = 0; } }
+        // Genera solución completa con backtracking
+        let attempts = 0;
+        const fillSolution = (b) => {
+            attempts++;
+            if (attempts > 500000) return false; // safety limit
+            // Elegir la celda vacía con menos candidatos (MRV heuristic)
+            let minOpts = 10, bestIdx = -1;
+            for (let i = 0; i < 81; i++) {
+                if (b[i] !== 0) continue;
+                let cnt = 0;
+                for (let n = 1; n <= 9; n++) if (isSafe(b, i, n)) cnt++;
+                if (cnt === 0) return false; // celda sin opciones → backtrack
+                if (cnt < minOpts) { minOpts = cnt; bestIdx = i; }
+            }
+            if (bestIdx === -1) return true; // completo
+
+            let ns = [1,2,3,4,5,6,7,8,9].sort(() => Math.random() - 0.5);
+            for (let n of ns) {
+                if (isSafe(b, bestIdx, n)) {
+                    b[bestIdx] = n;
+                    if (fillSolution(b)) return true;
+                    b[bestIdx] = 0;
+                }
+            }
             return false;
         };
-        fill(solution);
+
+        solution = Array(81).fill(0);
+        fillSolution(solution);
+
         let board = [...solution];
         let target = parseInt(currentDiff);
-        let removed = 0, pos = Array.from({length:81}, (_,i)=>i).sort(()=>Math.random()-0.5);
+        let removed = 0;
+        let pos = Array.from({length: 81}, (_, i) => i).sort(() => Math.random() - 0.5);
+
         for (let p of pos) {
             if (removed >= (81 - target)) break;
             let temp = board[p]; board[p] = 0;
             let count = 0;
             const check = (g) => {
                 if (count > 1) return;
-                let i = g.indexOf(0); if (i === -1) { count++; return; }
-                for (let n=1; n<=9; n++) if (isSafe(g, i, n)) { g[i] = n; check(g); g[i] = 0; }
+                // MRV: elegir celda vacía con menos candidatos
+                let minC = 10, idx = -1;
+                for (let i = 0; i < 81; i++) {
+                    if (g[i] !== 0) continue;
+                    let c = 0;
+                    for (let n = 1; n <= 9; n++) if (isSafe(g, i, n)) c++;
+                    if (c === 0) return; // sin solución
+                    if (c < minC) { minC = c; idx = i; }
+                }
+                if (idx === -1) { count++; return; }
+                for (let n = 1; n <= 9; n++) {
+                    if (isSafe(g, idx, n)) { g[idx] = n; check(g); g[idx] = 0; }
+                    if (count > 1) return;
+                }
             };
             check([...board]);
             if (count !== 1) board[p] = temp; else removed++;
         }
+
         gridData = board.map(v => ({ val: v, fixed: v !== 0, notes: [] }));
     }
 
@@ -770,30 +806,7 @@
         return true;
     }
 
-    function giveStrategicHint() {
-        if (hints <= 0) return;
-        let foundIdx = -1;
-        for(let i=0; i<81; i++) {
-            if(gridData[i].val === 0) {
-                let options = [];
-                for(let n=1; n<=9; n++) if(isSafe(gridData.map(c=>c.val), i, n)) options.push(n);
-                if(options.length === 1) { foundIdx = i; break; }
-            }
-        }
-        if(foundIdx === -1) {
-            const empty = gridData.map((c,i) => c.val === 0 ? i : null).filter(v => v !== null);
-            foundIdx = empty[Math.floor(Math.random()*empty.length)];
-        }
-        if(foundIdx !== -1) {
-            playHintSound();
-            selected = foundIdx; render();
-            const cells = document.querySelectorAll('.cell');
-            cells[foundIdx].classList.add('hint-focus');
-            document.getElementById('hint-msg').innerText = "Aquí solo hay un camino lógico.";
-            hints--; updateHintBtn();
-            setTimeout(() => cells[foundIdx].classList.remove('hint-focus'), 3000);
-        }
-    }
+    // (giveStrategicHint replaced by Maestro Sudoku system below)
 
     function getRow(i) { return Math.floor(i / 9); }
     function getCol(i) { return i % 9; }
@@ -978,17 +991,272 @@
         document.getElementById('pencil-btn').innerText = `Lápiz: ${isPencil ? 'ON' : 'OFF'}`;
     }
 
-    function checkErrors() {
+
+    // ─── MAESTRO SUDOKU: Enseña técnicas, nunca revela la respuesta ───
+
+    // Muestra el panel de explicación del Maestro
+    function showMasterPanel(technique, explanation, highlightIdxs) {
+        // Resaltar celdas relevantes
         const cells = document.querySelectorAll('.cell');
-        let err = 0;
-        gridData.forEach((c, i) => {
-            if (c.val !== 0 && !c.fixed && c.val !== solution[i]) {
-                cells[i].classList.add('error'); err++;
-                setTimeout(() => cells[i].classList.remove('error'), 1500);
+        cells.forEach(c => c.classList.remove('hint-focus'));
+        highlightIdxs.forEach(i => { if (cells[i]) cells[i].classList.add('hint-focus'); });
+
+        // Mostrar panel flotante
+        let panel = document.getElementById('master-panel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'master-panel';
+            panel.style.cssText = `
+                position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+                width:min(440px, 98vw); background:#141414; border:1px solid #bb86fc55;
+                border-bottom:none; border-radius:16px 16px 0 0; padding:18px 20px 22px;
+                z-index:150; box-shadow:0 -8px 40px rgba(187,134,252,0.18);
+                transition: transform 0.3s ease;
+            `;
+            document.body.appendChild(panel);
+        }
+        panel.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <span style="font-size:0.65rem;letter-spacing:2px;color:#bb86fc;font-weight:700;">🎓 MAESTRO SUDOKU · ${technique.toUpperCase()}</span>
+                <button onclick="closeMasterPanel()" style="background:none;border:none;color:#666;font-size:1.2rem;cursor:pointer;padding:0 4px;">✕</button>
+            </div>
+            <p style="margin:0;font-size:0.92rem;color:#ddd;line-height:1.6;">${explanation}</p>
+        `;
+        panel.style.transform = 'translateX(-50%) translateY(0)';
+
+        // Auto-cerrar después de 9 segundos
+        clearTimeout(panel._timer);
+        panel._timer = setTimeout(() => closeMasterPanel(), 9000);
+    }
+
+    function closeMasterPanel() {
+        const panel = document.getElementById('master-panel');
+        if (panel) {
+            panel.style.transform = 'translateX(-50%) translateY(110%)';
+            setTimeout(() => {
+                document.querySelectorAll('.cell').forEach(c => c.classList.remove('hint-focus'));
+                document.getElementById('hint-msg').innerText = 'Concentración...';
+            }, 300);
+        }
+    }
+
+    function analyzeSudoku() {
+        const board = gridData.map(c => c.val);
+
+        // ── 1. NAKED SINGLE ──────────────────────────────────────────────────
+        // Una celda donde solo un dígito es posible
+        for (let i = 0; i < 81; i++) {
+            if (board[i] !== 0) continue;
+            let opts = [];
+            for (let n = 1; n <= 9; n++) if (isSafe(board, i, n)) opts.push(n);
+            if (opts.length === 0) {
+                // Celda imposible → hay errores previos
+                const group = [...groupIndices(i)].filter(j => j !== i && board[j] !== 0);
+                return {
+                    technique: 'Error detectado',
+                    explanation: `Esta celda (resaltada) ya no tiene ningún número posible. Esto indica que hay un error en alguna celda de su fila, columna o caja. Usa el lápiz para marcar candidatos y localiza el conflicto.`,
+                    highlights: [i, ...group.slice(0, 8)]
+                };
             }
-        });
-        document.getElementById('hint-msg').innerText = err > 0 ? `Hay ${err} errores.` : "Vas por buen camino.";
-        if(err > 0) playErrorSound();
+            if (opts.length === 1) {
+                // Resaltar la celda + todas las celdas de su grupo que "bloquean"
+                const blockers = [...groupIndices(i)].filter(j => j !== i && board[j] !== 0);
+                return {
+                    technique: 'Celda Forzada (Naked Single)',
+                    explanation: `Hay una celda (resaltada en verde) donde solo <strong>un dígito es posible</strong>. Para encontrarlas: recorre cada celda vacía y elimina los números ya presentes en su fila, columna y caja 3×3. Si solo queda una opción, ¡ese número va ahí! Busca la celda señalada y aplica esta lógica.`,
+                    highlights: [i]
+                };
+            }
+        }
+
+        // ── 2. HIDDEN SINGLE en fila ─────────────────────────────────────────
+        for (let r = 0; r < 9; r++) {
+            for (let n = 1; n <= 9; n++) {
+                let positions = [];
+                for (let c = 0; c < 9; c++) {
+                    const i = r * 9 + c;
+                    if (board[i] === 0 && isSafe(board, i, n)) positions.push(i);
+                }
+                if (positions.length === 1) {
+                    const rowAll = Array.from({length:9}, (_, c) => r * 9 + c);
+                    return {
+                        technique: 'Single Oculto en Fila',
+                        explanation: `En la fila resaltada, hay un dígito que solo puede colocarse en <strong>una única celda</strong> (aunque esa celda tenga varios candidatos). Técnica: toma cada dígito del 1 al 9 y pregúntate "¿en cuántas celdas vacías de esta fila cabe?" Si solo cabe en una, ¡va ahí! Analiza la fila señalada buscando ese dígito solitario.`,
+                        highlights: [...rowAll, ...positions]
+                    };
+                }
+            }
+        }
+
+        // ── 3. HIDDEN SINGLE en columna ──────────────────────────────────────
+        for (let c = 0; c < 9; c++) {
+            for (let n = 1; n <= 9; n++) {
+                let positions = [];
+                for (let r = 0; r < 9; r++) {
+                    const i = r * 9 + c;
+                    if (board[i] === 0 && isSafe(board, i, n)) positions.push(i);
+                }
+                if (positions.length === 1) {
+                    const colAll = Array.from({length:9}, (_, r) => r * 9 + c);
+                    return {
+                        technique: 'Single Oculto en Columna',
+                        explanation: `En la columna resaltada, hay un dígito que solo puede colocarse en <strong>una única celda</strong>. Técnica: para cada dígito del 1 al 9, revisa cuántas celdas vacías de esa columna lo admiten. Si solo una lo admite, es obligatorio ponerlo ahí. ¡Busca ese dígito solitario en la columna señalada!`,
+                        highlights: [...Array.from({length:9}, (_, r) => r * 9 + c), ...positions]
+                    };
+                }
+            }
+        }
+
+        // ── 4. HIDDEN SINGLE en caja ─────────────────────────────────────────
+        for (let box = 0; box < 9; box++) {
+            const br = Math.floor(box / 3) * 3, bc = (box % 3) * 3;
+            const boxIdx = [];
+            for (let x = 0; x < 3; x++) for (let y = 0; y < 3; y++) boxIdx.push((br+x)*9+(bc+y));
+            for (let n = 1; n <= 9; n++) {
+                let positions = boxIdx.filter(i => board[i] === 0 && isSafe(board, i, n));
+                if (positions.length === 1) {
+                    return {
+                        technique: 'Single Oculto en Caja',
+                        explanation: `En la caja 3×3 resaltada, un dígito solo tiene <strong>una celda posible</strong>. Técnica: dentro de cada caja, toma cada dígito faltante y cruza las restricciones de filas y columnas externas que la atraviesan. Cuando un dígito solo "cabe" en una celda de la caja, va ahí. ¡Inspecciona la caja señalada!`,
+                        highlights: [...boxIdx, ...positions]
+                    };
+                }
+            }
+        }
+
+        // ── 5. NAKED PAIR ────────────────────────────────────────────────────
+        function findNakedPair(indices) {
+            const cellOpts = {};
+            for (const i of indices) {
+                if (board[i] !== 0) continue;
+                let opts = [];
+                for (let n = 1; n <= 9; n++) if (isSafe(board, i, n)) opts.push(n);
+                if (opts.length === 2) { const k = opts.join(','); (cellOpts[k] = cellOpts[k]||[]).push(i); }
+            }
+            for (const [key, idxs] of Object.entries(cellOpts)) {
+                if (idxs.length >= 2) {
+                    const [a, b] = key.split(',');
+                    // Celdas del grupo que NO son el par pero tienen esos candidatos
+                    const affected = indices.filter(i => !idxs.includes(i) && board[i] === 0);
+                    return {
+                        technique: 'Par Desnudo (Naked Pair)',
+                        explanation: `Las dos celdas resaltadas en verde solo admiten los dígitos <strong>${a} y ${b}</strong>. Aunque no sabemos cuál va en cada una, sabemos con certeza que esos dos dígitos quedan "reservados" para ellas. Por lo tanto, puedes <strong>eliminar ${a} y ${b} como candidatos</strong> de todas las demás celdas vacías del mismo grupo (fila, columna o caja). ¡Usa el lápiz para marcar y eliminar candidatos!`,
+                        highlights: [...idxs, ...affected.slice(0,4)]
+                    };
+                }
+            }
+            return null;
+        }
+
+        for (let r = 0; r < 9; r++) {
+            const h = findNakedPair(Array.from({length:9}, (_, c) => r*9+c));
+            if (h) return h;
+        }
+        for (let c = 0; c < 9; c++) {
+            const h = findNakedPair(Array.from({length:9}, (_, r) => r*9+c));
+            if (h) return h;
+        }
+        for (let box = 0; box < 9; box++) {
+            const br = Math.floor(box/3)*3, bc = (box%3)*3;
+            const boxIdx = [];
+            for (let x=0;x<3;x++) for (let y=0;y<3;y++) boxIdx.push((br+x)*9+(bc+y));
+            const h = findNakedPair(boxIdx);
+            if (h) return h;
+        }
+
+        // ── 6. POINTING PAIR/TRIPLE ──────────────────────────────────────────
+        // Si en una caja un candidato solo aparece en una fila/columna,
+        // se puede eliminar de esa fila/columna fuera de la caja
+        for (let box = 0; box < 9; box++) {
+            const br = Math.floor(box/3)*3, bc = (box%3)*3;
+            for (let n = 1; n <= 9; n++) {
+                let positions = [];
+                for (let x=0;x<3;x++) for (let y=0;y<3;y++) {
+                    const i = (br+x)*9+(bc+y);
+                    if (board[i] === 0 && isSafe(board, i, n)) positions.push(i);
+                }
+                if (positions.length < 2 || positions.length > 3) continue;
+                const rows = [...new Set(positions.map(i => Math.floor(i/9)))];
+                const cols = [...new Set(positions.map(i => i%9))];
+                const boxIdx = [];
+                for (let x=0;x<3;x++) for (let y=0;y<3;y++) boxIdx.push((br+x)*9+(bc+y));
+
+                if (rows.length === 1) {
+                    // Candidatos alineados en una fila dentro de la caja
+                    const externalCells = Array.from({length:9}, (_,c) => rows[0]*9+c)
+                        .filter(i => !boxIdx.includes(i) && board[i] === 0 && isSafe(board, i, n));
+                    if (externalCells.length > 0) {
+                        return {
+                            technique: 'Par/Triple Apuntador (Pointing)',
+                            explanation: `Dentro de la caja resaltada, un dígito solo puede ir en celdas que están en la <strong>misma fila</strong>. Esto significa que ese dígito, sea cual sea la celda exacta dentro de la caja, siempre "apuntará" y ocupará esa fila. Por lo tanto, puedes <strong>eliminar ese dígito como candidato</strong> en las demás celdas vacías de esa fila fuera de la caja. Usa el lápiz para limpiar candidatos en la fila señalada.`,
+                            highlights: [...boxIdx, ...positions, ...externalCells.slice(0,3)]
+                        };
+                    }
+                }
+                if (cols.length === 1) {
+                    const externalCells = Array.from({length:9}, (_,r) => r*9+cols[0])
+                        .filter(i => !boxIdx.includes(i) && board[i] === 0 && isSafe(board, i, n));
+                    if (externalCells.length > 0) {
+                        return {
+                            technique: 'Par/Triple Apuntador (Pointing)',
+                            explanation: `Dentro de la caja resaltada, un dígito solo puede ir en celdas alineadas en la <strong>misma columna</strong>. Esto te permite eliminar ese dígito como candidato de las demás celdas vacías de esa columna fuera de la caja. ¡Usa el lápiz y limpia esos candidatos!`,
+                            highlights: [...boxIdx, ...positions, ...externalCells.slice(0,3)]
+                        };
+                    }
+                }
+            }
+        }
+
+        // ── 7. Consejo general: celda con menos candidatos ───────────────────
+        let minOpts = 10, bestIdx = -1, bestCount = 0;
+        for (let i = 0; i < 81; i++) {
+            if (board[i] !== 0) continue;
+            let cnt = 0;
+            for (let n = 1; n <= 9; n++) if (isSafe(board, i, n)) cnt++;
+            if (cnt > 0 && cnt < minOpts) { minOpts = cnt; bestIdx = i; bestCount = cnt; }
+        }
+        if (bestIdx !== -1) {
+            return {
+                technique: 'Consejo General',
+                explanation: `La celda resaltada tiene solo <strong>${bestCount} candidatos posibles</strong>. Es un buen punto de partida. Activa el <strong>modo lápiz</strong> y anota en cada celda vacía los números que todavía pueden ir ahí (eliminando los ya presentes en su fila, columna y caja). Esto te dará visibilidad para aplicar las técnicas avanzadas.`,
+                highlights: [bestIdx]
+            };
+        }
+
+        return null;
+    }
+
+    function giveStrategicHint() {
+        resumeAudio();
+        const hint = analyzeSudoku();
+        if (!hint) {
+            document.getElementById('hint-msg').innerText = '✨ ¡Sigue así, el tablero está bien!';
+            return;
+        }
+        playHintSound();
+        document.getElementById('hint-msg').innerText = `🎓 ${hint.technique}`;
+        showMasterPanel(hint.technique, hint.explanation, hint.highlights);
+    }
+
+    function updateHintBtn() {
+        const btn = document.getElementById('hint-btn');
+        if (btn) btn.innerText = '💡 Maestro';
+    }
+
+    // ─── TIMER & FORMAT ───
+    function formatTime(s) {
+        const m = Math.floor(s / 60);
+        return `${String(m).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+    }
+
+    function startTimer() {
+        clearInterval(timer);
+        timer = setInterval(() => {
+            secs++;
+            const el = document.getElementById('timer');
+            if (el) el.innerText = formatTime(secs);
+            if (currentUser && secs % 15 === 0) saveCurrentGame();
+        }, 1000);
     }
 
     // ─── VICTORIA ───
@@ -998,86 +1266,72 @@
 
         ensureUserStructure(currentUser);
         const d = users[currentUser][currentDiff];
-        const isNewBest = (typeof d.best !== 'number' || !isFinite(d.best) || d.best <= 0 || secs < d.best);
-        d.wins++;
         d.games++;
-        d.totalTime += secs;
-        if (isNewBest) d.best = secs;
-        // Registrar bucket de errores (0 a 3 = victorias con ese nº de errores)
+        d.wins++;
+        d.totalTime = (d.totalTime || 0) + secs;
+        if (!isFinite(d.best) || secs < d.best) d.best = secs;
+        // errorBuckets: índice = cantidad de errores cometidos (0..3)
         const bucket = Math.min(errorCount, 3);
         d.errorBuckets[bucket]++;
         saveUsers();
 
-        // Mostrar modal de victoria con stats
-        const diffLabel = { "42": "Fácil", "34": "Medio", "26": "Difícil" }[currentDiff];
-        const perfMessages = ["¡Partida perfecta! Sin errores 🌟", "¡Excelente! Solo 1 error 👏", "¡Bien jugado! 2 errores 💪", "¡Lograste completarlo! 3 errores 🎯"];
-        document.getElementById('win-subtitle').innerText = perfMessages[errorCount] || '';
-        document.getElementById('win-badge').innerText = isNewBest ? '🏆 NUEVO RÉCORD' : '¡VICTORIA!';
-        document.getElementById('win-badge').style.background = isNewBest
-            ? 'linear-gradient(45deg, #ffd700, #ff8c00)'
-            : 'linear-gradient(45deg, var(--primary), var(--secondary))';
+        playWinSound();
 
-        const prevBest = isNewBest ? '—' : formatTime(d.best);
+        const diffLabel = { "42": "Fácil", "34": "Medio", "26": "Difícil" }[currentDiff] || "?";
+        const badge = errorCount === 0 ? '✨ ¡PERFECTO!' : '🏆 ¡VICTORIA!';
+        document.getElementById('win-badge').innerText = badge;
+        document.getElementById('win-title').innerText = errorCount === 0 ? '¡Impecable!' : '¡Ganaste!';
+        document.getElementById('win-subtitle').innerText = `${currentUser} · ${diffLabel}`;
         document.getElementById('win-stats').innerHTML = `
             <div class="win-stat-item"><div class="wsi-val">${formatTime(secs)}</div><div class="wsi-label">TIEMPO</div></div>
             <div class="win-stat-item"><div class="wsi-val">${errorCount}</div><div class="wsi-label">ERRORES</div></div>
-            <div class="win-stat-item"><div class="wsi-val">${d.wins}</div><div class="wsi-label">VICTORIAS ${diffLabel.toUpperCase()}</div></div>
-            <div class="win-stat-item"><div class="wsi-val">${isNewBest ? formatTime(secs) : prevBest}</div><div class="wsi-label">${isNewBest ? 'NUEVO RÉCORD ✨' : 'TU RÉCORD'}</div></div>
+            <div class="win-stat-item"><div class="wsi-val">${isFinite(d.best) ? formatTime(d.best) : '--'}</div><div class="wsi-label">MEJOR</div></div>
+            <div class="win-stat-item"><div class="wsi-val">${d.wins}</div><div class="wsi-label">VICTORIAS</div></div>
         `;
+        launchConfetti();
+        setTimeout(() => document.getElementById('win-modal').classList.add('show'), 400);
+    }
 
-        // Efectos
-        playWinSound();
-        createCelebration();
+    // ─── CONFETI ───
+    function launchConfetti() {
+        const colors = ['#bb86fc','#03dac6','#ff0266','#ffd700','#00e5ff'];
+        for (let i = 0; i < 80; i++) {
+            setTimeout(() => {
+                const el = document.createElement('div');
+                el.className = 'confetti';
+                el.style.cssText = `
+                    left:${Math.random()*100}vw; top:-10px;
+                    background:${colors[Math.floor(Math.random()*colors.length)]};
+                    transform:rotate(${Math.random()*360}deg);
+                    animation: fall ${1.2 + Math.random()*2}s linear forwards;
+                `;
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 3500);
+            }, i * 30);
+        }
+    }
 
-        setTimeout(() => {
-            document.getElementById('win-modal').classList.add('show');
-        }, 800);
+    // ─── MODALES Y NAVEGACIÓN ───
+    function startNewGameFromModal() {
+        document.getElementById('gameover-modal').classList.remove('show');
+        startNewGame();
+        render();
     }
 
     function startNewGameFromWin() {
         document.getElementById('win-modal').classList.remove('show');
         startNewGame();
+        render();
+    }
+
+    function exitFromModal() {
+        document.getElementById('gameover-modal').classList.remove('show');
+        goMenu();
     }
 
     function exitFromWin() {
         document.getElementById('win-modal').classList.remove('show');
-        exitGame();
-    }
-
-    function createCelebration() {
-        const colors = ['var(--primary)', 'var(--secondary)', '#ffd700', '#ff0266', '#00e5ff'];
-        for(let i=0; i<80; i++) {
-            const c = document.createElement('div');
-            c.className = 'confetti';
-            c.style.left = Math.random() * 100 + 'vw';
-            c.style.top = '-10px';
-            c.style.width = (Math.random() * 8 + 5) + 'px';
-            c.style.height = (Math.random() * 8 + 5) + 'px';
-            c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-            c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-            document.body.appendChild(c);
-            const delay = Math.random() * 600;
-            const dur   = 2000 + Math.random() * 2500;
-            setTimeout(() => {
-                c.animate([
-                    { top: '-10px', opacity: 1, transform: `rotate(0deg) translateX(0)` },
-                    { top: '100vh', opacity: 0, transform: `rotate(${Math.random()*720 - 360}deg) translateX(${Math.random()*60-30}px)` }
-                ], { duration: dur, easing: 'ease-in' });
-            }, delay);
-            setTimeout(() => c.remove(), delay + dur + 100);
-        }
-    }
-
-    function exitGame() {
-        clearInterval(timer);
-        clearSavedGame();
-        document.getElementById('gameover-modal').classList.remove('show');
-        document.getElementById('exit-modal').classList.remove('show');
-        document.getElementById('win-modal').classList.remove('show');
-        document.getElementById('game-screen').style.display = 'none';
-        document.getElementById('menu-screen').style.display = 'flex';
-        updateUserSelect();
-        checkResumeButton();
+        goMenu();
     }
 
     function askExit() {
@@ -1085,66 +1339,56 @@
         document.getElementById('exit-modal').classList.add('show');
     }
 
-    function saveAndExit() { saveCurrentGame(); exitGame(); }
+    function saveAndExit() {
+        if (currentUser) saveCurrentGame();
+        document.getElementById('exit-modal').classList.remove('show');
+        goMenu();
+    }
 
     function closeExitModal() {
         document.getElementById('exit-modal').classList.remove('show');
         startTimer();
     }
 
-    function startNewGameFromModal() {
-        document.getElementById('gameover-modal').classList.remove('show');
-        startNewGame();
-    }
-
-    function exitFromModal() {
-        document.getElementById('gameover-modal').classList.remove('show');
-        exitGame();
-    }
-
-    function startTimer() {
+    function goMenu() {
         clearInterval(timer);
-        timer = setInterval(() => { secs++; document.getElementById('timer').innerText = formatTime(secs); }, 1000);
+        document.getElementById('game-screen').style.display = 'none';
+        document.getElementById('menu-screen').style.display = 'flex';
+        loadUserProfiles();
+        checkResumeButton();
     }
 
-    function formatTime(s) {
-        if (!s || !isFinite(s) || s <= 0) return '--:--';
-        return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
-    }
-
-    function updateHintBtn() { document.getElementById('hint-btn').innerText = `Sugerencia (${hints})`; }
-
-    function updateUserSelect() {
+    function loadUserProfiles() {
         const sel = document.getElementById('user-select');
+        const cur = sel.value;
         sel.innerHTML = '<option value="" disabled selected>Selecciona un perfil...</option>';
-        Object.keys(users).forEach(u => {
-            const opt = document.createElement('option'); opt.value = u; opt.innerText = u;
-            if(u === currentUser) opt.selected = true;
+        Object.keys(users).sort().forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name; opt.innerText = name;
             sel.appendChild(opt);
         });
-        const nOpt = document.createElement('option'); nOpt.value = 'new'; nOpt.innerText = '+ Crear nuevo perfil';
-        sel.appendChild(nOpt);
+        const newOpt = document.createElement('option');
+        newOpt.value = 'new'; newOpt.innerText = '+ Crear nuevo perfil';
+        sel.appendChild(newOpt);
+        if (cur && cur !== 'new') sel.value = cur;
     }
 
-    window.onkeydown = (e) => {
+    // ─── TECLADO ───
+    document.addEventListener('keydown', e => {
         if (e.key >= '1' && e.key <= '9') handleInput(parseInt(e.key));
-        if (e.key === 'Backspace') handleInput(null);
-    };
+        if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') handleInput(null);
+        if (e.key === 'p' || e.key === 'P') togglePencil();
+    });
 
-    // Reanudar AudioContext en primer toque (política de navegadores)
-    document.addEventListener('touchstart', resumeAudio, { once: true });
-    document.addEventListener('click', resumeAudio, { once: true });
+    // ─── ANIMACIÓN CAÍDA CONFETI ───
+    const styleConf = document.createElement('style');
+    styleConf.innerText = `@keyframes fall { to { top: 110vh; transform: rotate(720deg); } }`;
+    document.head.appendChild(styleConf);
 
-    updateUserSelect();
+    // ─── INIT ───
+    loadUserProfiles();
     checkResumeButton();
 
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./service-worker.js')
-                .then(() => console.log('Service Worker registrado'))
-                .catch((err) => console.log('Error SW:', err));
-        });
-    }
 </script>
 </body>
 </html>
